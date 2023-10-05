@@ -17,7 +17,7 @@ export default {
 		// Redis database credentials
 		host: 'Your Redis Server IP', //redis server IP
 		port: 6379, //your redis server port, 6379 is the default 
-		password: '=8ttUH?bdK_rgN:,pzCDsLKKczE5d' //redis server password
+		password: 'Your Reids Pass' //redis server password
 	},
 
 	suggest: {
@@ -36,10 +36,10 @@ export default {
 
 	applicationCategoryName: 'Applications',
 
-	// Set of positions with their questions:
+	// Set of positions with their questions you can add as many as you'd like. All you need to do to get this as a panel with buttons is do /apply
 	positions: {
-		Admin: ['Whats your name?', 'Whats your age?', '1'],
-		Mod: ['Whats your name?', 'Whats your age?', '2'],
-		Dev: ['Whats your name?', 'Whats your age?', '3']
+		Admin: ['Whats your name?', 'Whats your age?', 'Why do you want admin'],
+		Mod: ['Whats your name?', 'Whats your age?', 'Why do you want Mod'],
+		Dev: ['Whats your name?', 'Whats your age?', 'Why do you want dev']
 	}
 }
