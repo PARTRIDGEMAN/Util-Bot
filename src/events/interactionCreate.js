@@ -1,6 +1,18 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionFlagsBits } from 'discord.js'
+import {
+	ActionRowBuilder,
+	BaseGuildTextChannel,
+	ButtonBuilder,
+	ButtonStyle,
+	ChannelType,
+	EmbedBuilder,
+	OverwriteType,
+	PermissionFlagsBits,
+	StringSelectMenuBuilder
+} from 'discord.js'
 import db from '../database.js'
 import config from '../config.js'
+import ms from 'ms'
+import { transcript } from '../util.js'
 
 const cooldown = new Set()
 
@@ -15,6 +27,178 @@ const VoteType = Object.freeze({
  */
 export const interactionCreate = async (ctx) => {
 	if (!ctx.inGuild()) return
+
+	if (ctx.isButton() && (ctx.customId === 'accept_application' || ctx.customId === 'reject_application')) {
+		const member = await ctx.guild.members.fetch({ user: ctx.user, force: false })
+
+		if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
+			return ctx.reply({
+				ephemeral: true,
+				content: "You don't have permissions to perform this action."
+			})
+		}
+
+		await ctx.deferUpdate()
+
+		if (ctx.channel instanceof BaseGuildTextChannel) {
+			await ctx.channel.permissionOverwrites.edit(
+				ctx.channel.name,
+				{ SendMessages: false },
+				{ type: OverwriteType.Member }
+			)
+		}
+
+		await ctx.channel.permissionOverwrites
+
+		const messages = await ctx.channel.messages.fetch({ limit: 100 })
+
+		const transcriptUrl = await transcript(
+			messages
+				.reverse()
+				.filter((m) => !m.author.bot && m.content)
+				.map((m) => `${m.author.username}: ${m.cleanContent}`)
+				.join('\n\n')
+		)
+
+		const row = new ActionRowBuilder()
+
+		row.addComponents(new ButtonBuilder().setURL(transcriptUrl).setStyle(ButtonStyle.Link).setLabel('Transcript'))
+
+		await ctx.message.edit({
+			components: [row],
+			embeds: [
+				new EmbedBuilder(ctx.message.embeds[0].toJSON()).setColor(ctx.customId.startsWith('accept') ? 'Green' : 'Red')
+			]
+		})
+
+		await ctx.channel.send(`<@${ctx.channel.name}>`).then((it) => it.delete().catch(() => null))
+
+		return
+	}
+
+	if (ctx.isStringSelectMenu() && ctx.customId === 'position') {
+		if (ctx.user.id !== ctx.channel.name)
+			return ctx.reply({
+				ephemeral: true,
+				content: 'Only who opened the application can select.'
+			})
+
+		const position = ctx.values[0]
+		const questions = config.positions[position]
+
+		await ctx.update({ components: [] })
+
+		const answers = new Map()
+
+		for (const question of questions) {
+			await ctx.channel.send(`${ctx.user}, ` + question)
+
+			let msg
+
+			while (!msg)
+				msg = await ctx.channel
+					.awaitMessages({
+						time: ms('30 minutes'),
+						filter: (m) => m.channelId === ctx.channelId && m.author.id === ctx.user.id,
+						max: 1
+					})
+					.then((it) => it.first())
+
+			answers.set(question, msg.content.slice(0, 1024) + (msg.content.length > 1024 ? '...' : ''))
+		}
+
+		const botMessages = ctx.channel.messages.cache.filter((it) => it.author.bot)
+
+		await ctx.channel.bulkDelete(botMessages)
+
+		const embed = new EmbedBuilder().setColor('#303434').setTimestamp()
+
+		embed.addFields({
+			name: 'Position',
+			value: position
+		})
+
+		for (const [name, value] of answers.entries()) {
+			embed.addFields({ name, value })
+		}
+
+		const row = new ActionRowBuilder()
+
+		row.addComponents(
+			new ButtonBuilder().setStyle(ButtonStyle.Success).setLabel('Accept').setCustomId('accept_application'),
+			new ButtonBuilder().setStyle(ButtonStyle.Danger).setLabel('Reject').setCustomId('reject_application')
+		)
+
+		await ctx.channel.send({
+			embeds: [embed],
+			components: [row]
+		})
+
+		return
+	}
+
+	if (ctx.isButton() && ctx.customId === 'application_open') {
+		await ctx.deferReply({ ephemeral: true })
+
+		let cat = ctx.guild.channels.cache.find(
+			(it) =>
+				it.type === ChannelType.GuildCategory && it.name.toLowerCase() === config.applicationCategoryName.toLowerCase()
+		)
+
+		if (!cat)
+			cat = await ctx.guild.channels.create({
+				type: ChannelType.GuildCategory,
+				name: config.applicationCategoryName,
+				permissionOverwrites: [
+					{
+						id: ctx.guildId,
+						type: OverwriteType.Role,
+						deny: PermissionFlagsBits.ViewChannel | PermissionFlagsBits.ReadMessageHistory
+					}
+				]
+			})
+
+		let channel = ctx.guild.channels.cache.find((it) => it.parentId === cat.id && it.name === ctx.user.id)
+
+		if (channel) return ctx.editReply('You have an opened application.')
+
+		channel = await ctx.guild.channels.create({
+			parent: cat,
+			type: ChannelType.GuildText,
+			name: ctx.user.id,
+			permissionOverwrites: [
+				{
+					id: ctx.guildId,
+					type: OverwriteType.Role,
+					deny: PermissionFlagsBits.ViewChannel | PermissionFlagsBits.ReadMessageHistory
+				},
+				{
+					id: ctx.user.id,
+					type: OverwriteType.Member,
+					allow:
+						PermissionFlagsBits.ViewChannel | PermissionFlagsBits.ReadMessageHistory | PermissionFlagsBits.SendMessages
+				}
+			]
+		})
+
+		await ctx.editReply(`An application has been opened: ${channel}`)
+
+		const row = new ActionRowBuilder()
+
+		row.addComponents(
+			new StringSelectMenuBuilder()
+				.setCustomId('position')
+				.setPlaceholder('Select position')
+				.addOptions(Object.keys(config.positions).map((it) => ({ label: it, value: it })))
+		)
+
+		await channel.send({
+			content: `${ctx.user}, What the position you're applying for?`,
+			components: [row]
+		})
+
+		return
+	}
 
 	if (ctx.isButton() && typeof VoteType[ctx.customId] !== 'undefined') {
 		await ctx.deferUpdate()

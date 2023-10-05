@@ -83,6 +83,9 @@ export const suggestCmd = {
 		})
 
 		await channel.threads.create({ name: 'Discussion', startMessage: msg, type: ChannelType.PublicThread })
-		await ctx.followUp('Suggestion submitted')
+		await ctx.followUp({
+			content: 'Suggestion submitted',
+			ephemeral: true
+		})
 	}
 }

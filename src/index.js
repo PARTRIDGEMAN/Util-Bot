@@ -4,7 +4,7 @@ import * as events from './events/index.js'
 import * as commands from './commands/index.js'
 
 const client = new Client({
-	intents: Intents.Guilds
+	intents: Intents.Guilds | Intents.MessageContent | Intents.GuildMessages | Intents.GuildMembers
 })
 
 client.commands = new Collection()

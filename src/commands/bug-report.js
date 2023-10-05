@@ -82,6 +82,9 @@ export const bugReportCmd = {
 			components: [row, staffRow]
 		})
 
-		await ctx.followUp('Bug reported')
+		await ctx.followUp({
+			content: 'Bug reported',
+			ephemeral: true
+		})
 	}
 }
