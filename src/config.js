@@ -13,21 +13,33 @@ Make sure to replace 'your-token-here' with the actual token for your Discord bo
 export default {
 	token: env.get('DISCORD_TOKEN').required().asString(),
 
-	database: { // Redis database credentials
-		host: 'Redis_IP',
-		port: Redis_Port,
-		password: 'Redis_Password'
+	database: {
+		// Redis database credentials
+		host: 'Your Redis Server IP', //redis server IP
+		port: 6379, //your redis server port, 6379 is the default 
+		password: '=8ttUH?bdK_rgN:,pzCDsLKKczE5d' //redis server password
 	},
 
-	suggest: { // Suggest Channel ID
-		default: '971257332476543067',
-		approved: '971257332476543067',
-		denied: '971257332476543067'
+	suggest: {
+		// Suggest Channel ID
+		default: 'Channel ID', //where suggestions go (make sure users can send msgs in threads)
+		approved: 'Channel ID', //where approved suggestions go
+		denied: 'Channel ID' //where denied suggestions go
 	},
 
-	bugReport: { // Bug report Channel ID
-		default: '1153563334700957738',
-		rejected: '1153563334700957738',
-		fixed: '971252181061763132'
+	bugReport: {
+		// Bug report Channel ID
+		default: 'Channel ID', //where bug reports go (make sure users can send msgs in threads)
+		rejected: 'Channel ID', //where rejected bug reports go
+		fixed: 'Channel ID' //where fixed bug reports go
+	},
+
+	applicationCategoryName: 'Applications',
+
+	// Set of positions with their questions:
+	positions: {
+		Admin: ['Whats your name?', 'Whats your age?', '1'],
+		Mod: ['Whats your name?', 'Whats your age?', '2'],
+		Dev: ['Whats your name?', 'Whats your age?', '3']
 	}
 }
